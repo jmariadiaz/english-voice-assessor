@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English Voice Assessor</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080a10;
+  --accent: #63b3ed;
+  --accent2: #f6ad55;
+  --text: #e8eaf0;
+  --muted: #4a5568;
+  --surface: #0f1420;
+  --border: #1a2035;
+  --success: #68d391;
+  --listening: #fc8181;
+  --speaking: #63b3ed;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+body::before {
+  content:'';
+  position:fixed;
+  top:30%; left:50%;
+  transform:translate(-50%,-50%);
+  width:600px; height:600px;
+  background: radial-gradient(circle, rgba(99,179,237,0.06) 0%, transparent 70%);
+  pointer-events:none;
+}
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(99,179,237,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,179,237,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events:none;
+}
+header {
+  width:100%; max-width:700px;
+  padding:32px 24px 0;
+  display:flex; justify-content:space-between; align-items:center;
+  position:relative; z-index:10;
+}
+.brand { font-size:0.75rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--muted); font-family:'Syne Mono', monospace; }
+.brand span { color:var(--accent); }
+.turn-counter { font-family:'Syne Mono', monospace; font-size:0.7rem; color:var(--muted); letter-spacing:0.1em; }
+.orb-area {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:relative; z-index:10; gap:40px; padding:20px;
+}
+.orb-wrapper { position:relative; width:200px; height:200px; display:flex; align-items:center; justify-content:center; }
+.ring { position:absolute; border-radius:50%; border:1px solid; transition: all 0.4s ease; }
+.ring-1 { width:200px;height:200px; border-color:rgba(99,179,237,0.2); }
+.ring-2 { width:160px;height:160px; border-color:rgba(99,179,237,0.15); }
+.ring-3 { width:120px;height:120px; border-color:rgba(99,179,237,0.1); }
+.orb-wrapper.listening .ring-1 { border-color:rgba(252,129,129,0.4); animation:ripple1 1.2s ease-in-out infinite; }
+.orb-wrapper.listening .ring-2 { border-color:rgba(252,129,129,0.3); animation:ripple2 1.2s ease-in-out infinite 0.2s; }
+.orb-wrapper.listening .ring-3 { border-color:rgba(252,129,129,0.2); animation:ripple3 1.2s ease-in-out infinite 0.4s; }
+.orb-wrapper.speaking .ring-1 { border-color:rgba(99,179,237,0.5); animation:ripple1 0.8s ease-in-out infinite; }
+.orb-wrapper.speaking .ring-2 { border-color:rgba(99,179,237,0.35); animation:ripple2 0.8s ease-in-out infinite 0.15s; }
+.orb-wrapper.speaking .ring-3 { border-color:rgba(99,179,237,0.2); animation:ripple3 0.8s ease-in-out infinite 0.3s; }
+@keyframes ripple1 { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.08);opacity:0.7} }
+@keyframes ripple2 { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.1);opacity:0.6} }
+@keyframes ripple3 { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.15);opacity:0.5} }
+.orb-core {
+  width:84px; height:84px; border-radius:50%;
+  background: radial-gradient(circle at 35% 35%, #1a2a4a, #0a0f1a);
+  border:1px solid rgba(99,179,237,0.3);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all 0.3s ease; position:relative;
+  box-shadow: 0 0 30px rgba(99,179,237,0.1), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.orb-wrapper.listening .orb-core { background:radial-gradient(circle at 35% 35%,#3d1a1a,#1a0a0a); border-color:rgba(252,129,129,0.5); box-shadow:0 0 40px rgba(252,129,129,0.2); }
+.orb-wrapper.speaking .orb-core  { background:radial-gradient(circle at 35% 35%,#1a2d4a,#0a1020); border-color:rgba(99,179,237,0.6);  box-shadow:0 0 50px rgba(99,179,237,0.25); }
+.orb-icon { font-size:1.8rem; transition:all 0.3s ease; user-select:none; }
+.waveform { display:flex; align-items:center; gap:3px; height:28px; position:absolute; }
+.wave-bar { width:3px; background:var(--listening); border-radius:2px; animation:wave 0.8s ease-in-out infinite; opacity:0; transition:opacity 0.2s; }
+.orb-wrapper.listening .wave-bar { opacity:1; }
+.wave-bar:nth-child(1){animation-delay:0s} .wave-bar:nth-child(2){animation-delay:0.1s}
+.wave-bar:nth-child(3){animation-delay:0.2s} .wave-bar:nth-child(4){animation-delay:0.3s}
+.wave-bar:nth-child(5){animation-delay:0.2s} .wave-bar:nth-child(6){animation-delay:0.1s}
+.wave-bar:nth-child(7){animation-delay:0s}
+@keyframes wave { 0%,100%{height:4px} 50%{height:22px} }
+.status-label { font-family:'Syne Mono',monospace; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); text-align:center; min-height:20px; transition:color 0.3s; }
+.status-label.listening { color:var(--listening); }
+.status-label.speaking  { color:var(--speaking); }
+.status-label.thinking  { color:var(--accent2); }
+.transcript-area {
+  width:100%; max-width:560px; min-height:80px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:4px; padding:18px 22px; position:relative; overflow:hidden;
+}
+.transcript-area::before { content:''; position:absolute; left:0;top:0;bottom:0; width:2px; background:var(--accent); opacity:0.4; transition:background 0.3s; }
+.transcript-area.user-turn::before { background:var(--listening); }
+.transcript-area.bot-turn::before  { background:var(--speaking); }
+.transcript-label { font-family:'Syne Mono',monospace; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.transcript-text { font-size:0.92rem; line-height:1.6; color:var(--text); min-height:24px; }
+.transcript-text.faded { opacity:0.4; }
+.progress-dots { display:flex; gap:8px; align-items:center; }
+.dot { width:6px;height:6px; border-radius:50%; background:var(--border); transition:all 0.4s ease; border:1px solid var(--muted); }
+.dot.done   { background:var(--accent);  border-color:var(--accent);  box-shadow:0 0 6px rgba(99,179,237,0.5); }
+.dot.active { background:var(--accent2); border-color:var(--accent2); box-shadow:0 0 8px rgba(246,173,85,0.6); animation:pulse-dot 1s ease-in-out infinite; }
+@keyframes pulse-dot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+.controls {
+  width:100%; max-width:700px; padding:20px 24px 32px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:relative; z-index:10;
+}
+.mic-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'Syne',sans-serif; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; padding:10px 20px; cursor:pointer; border-radius:2px; transition:all 0.2s; }
+.mic-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+.mic-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.mic-btn.active { border-color:var(--listening); color:var(--listening); }
+.hint { font-family:'Syne Mono',monospace; font-size:0.62rem; color:var(--muted); letter-spacing:0.1em; text-align:right; max-width:200px; line-height:1.5; }
+/* Result overlay */
+.result-overlay { position:fixed;inset:0; background:rgba(8,10,16,0.97); z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; opacity:0; pointer-events:none; transition:opacity 0.6s ease; overflow-y:auto; }
+.result-overlay.show { opacity:1; pointer-events:all; }
+.result-inner { width:100%; max-width:560px; animation:slideUp 0.6s ease forwards; opacity:0; transform:translateY(20px); }
+@keyframes slideUp { to{opacity:1;transform:translateY(0)} }
+.result-header { display:flex; align-items:flex-end; gap:16px; margin-bottom:32px; padding-bottom:24px; border-bottom:1px solid var(--border); }
+.big-level { font-size:5rem; font-weight:800; color:var(--accent); line-height:1; letter-spacing:-0.05em; }
+.level-info { display:flex; flex-direction:column; gap:4px; }
+.level-name { font-size:1.1rem; font-weight:700; color:var(--text); }
+.level-sub { font-family:'Syne Mono',monospace; font-size:0.65rem; color:var(--muted); letter-spacing:0.15em; text-transform:uppercase; }
+.metrics { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; }
+.metric { display:flex; flex-direction:column; gap:8px; }
+.metric-top { display:flex; justify-content:space-between; align-items:baseline; }
+.metric-name { font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+.metric-val  { font-family:'Syne Mono',monospace; font-size:0.8rem; color:var(--text); }
+.metric-bar  { height:2px; background:var(--border); border-radius:1px; overflow:hidden; }
+.metric-fill { height:100%; border-radius:1px; width:0; transition:width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.summary-block { background:var(--surface); border:1px solid var(--border); border-left:2px solid var(--accent2); padding:18px 20px; margin-bottom:24px; font-size:0.85rem; line-height:1.7; color:var(--text); }
+.summary-block strong { color:var(--accent2); }
+.result-actions { display:flex; gap:12px; }
+.btn-primary   { background:var(--accent); color:var(--bg); border:none; font-family:'Syne',sans-serif; font-weight:700; font-size:0.75rem; letter-spacing:0.15em; text-transform:uppercase; padding:13px 28px; cursor:pointer; border-radius:2px; }
+.btn-secondary { background:transparent; color:var(--muted); border:1px solid var(--border); font-family:'Syne',sans-serif; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; padding:13px 24px; cursor:pointer; border-radius:2px; }
+.error-banner { background:rgba(252,129,129,0.1); border:1px solid rgba(252,129,129,0.3); color:#fc8181; padding:10px 16px; font-size:0.75rem; font-family:'Syne Mono',monospace; border-radius:2px; text-align:center; max-width:500px; display:none; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span>EN</span> · Voice Assessor</div>
+  <div class="turn-counter" id="turnCounter">— / 8</div>
+</header>
+
+<div class="orb-area">
+  <div class="orb-wrapper" id="orbWrapper">
+    <div class="ring ring-1"></div>
+    <div class="ring ring-2"></div>
+    <div class="ring ring-3"></div>
+    <div class="orb-core" id="orbCore" onclick="handleOrbClick()">
+      <div class="waveform" id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <div class="orb-icon" id="orbIcon">🎤</div>
+    </div>
+  </div>
+
+  <div class="status-label" id="statusLabel">Initialising…</div>
+
+  <div class="transcript-area" id="transcriptArea">
+    <div class="transcript-label" id="transcriptLabel">—</div>
+    <div class="transcript-text faded" id="transcriptText">Starting conversation…</div>
+  </div>
+
+  <div class="progress-dots" id="progressDots"></div>
+  <div class="error-banner" id="errorBanner"></div>
+</div>
+
+<div class="controls">
+  <button class="mic-btn" id="micBtn" onclick="handleOrbClick()" disabled>Tap to speak</button>
+  <div class="hint" id="hintText">Tap the orb when it's your turn</div>
+</div>
+
+<!-- Result overlay -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-inner">
+    <div class="result-header">
+      <div class="big-level" id="resLevel">B2</div>
+      <div class="level-info">
+        <div class="level-name" id="resLevelName">Upper Intermediate</div>
+        <div class="level-sub">CEFR Assessment Result</div>
+      </div>
+    </div>
+    <div class="metrics" id="resMetrics"></div>
+    <div class="summary-block" id="resSummary"></div>
+    <div class="result-actions">
+      <button class="btn-primary" onclick="location.reload()">↺ New Assessment</button>
+      <button class="btn-secondary" onclick="document.getElementById('resultOverlay').classList.remove('show')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL_TURNS = 8;
+let turnCount = 0;
+let history = [];
+let recognition = null;
+let appState = 'init';
+
+const orbWrapper    = document.getElementById('orbWrapper');
+const orbIcon       = document.getElementById('orbIcon');
+const statusLabel   = document.getElementById('statusLabel');
+const transcriptArea  = document.getElementById('transcriptArea');
+const transcriptLabel = document.getElementById('transcriptLabel');
+const transcriptText  = document.getElementById('transcriptText');
+const turnCounter   = document.getElementById('turnCounter');
+const progressDots  = document.getElementById('progressDots');
+const micBtn        = document.getElementById('micBtn');
+const hintText      = document.getElementById('hintText');
+const errorBanner   = document.getElementById('errorBanner');
+
+// Build dots
+for(let i=0;i<TOTAL_TURNS;i++){
+  const d=document.createElement('div'); d.className='dot'; d.id=`dot-${i}`;
+  progressDots.appendChild(d);
+}
+
+function updateDots(){
+  for(let i=0;i<TOTAL_TURNS;i++){
+    const d=document.getElementById(`dot-${i}`);
+    if(i<turnCount) d.className='dot done';
+    else if(i===turnCount) d.className='dot active';
+    else d.className='dot';
+  }
+}
+
+function showError(msg){ errorBanner.textContent=msg; errorBanner.style.display='block'; }
+function hideError(){ errorBanner.style.display='none'; }
+
+function setState(s){
+  appState=s;
+  orbWrapper.className='orb-wrapper';
+  orbIcon.style.display='block';
+  document.getElementById('waveform').style.display='none';
+  micBtn.disabled=true; micBtn.className='mic-btn';
+
+  if(s==='waiting'){
+    orbIcon.textContent='🎤';
+    setStatus('Tap to speak','');
+    micBtn.disabled=false; micBtn.textContent='Tap to speak';
+    hintText.textContent='Tap the orb or button to answer';
+  } else if(s==='listening'){
+    orbWrapper.classList.add('listening');
+    orbIcon.style.display='none';
+    document.getElementById('waveform').style.display='flex';
+    setStatus('Listening…','listening');
+    micBtn.disabled=false; micBtn.className='mic-btn active'; micBtn.textContent='■ Stop';
+    hintText.textContent='Tap again to stop recording';
+    showTranscript('you','Listening…',true);
+  } else if(s==='thinking'){
+    orbIcon.textContent='⟳';
+    setStatus('Thinking…','thinking');
+    hintText.textContent='Processing…';
+    showTranscript('assessor','…');
+  } else if(s==='speaking'){
+    orbWrapper.classList.add('speaking');
+    orbIcon.textContent='◉';
+    setStatus('Speaking…','speaking');
+    hintText.textContent='Listen to the assessor';
+  } else if(s==='done'){
+    orbIcon.textContent='✓';
+    setStatus('Done','');
+    micBtn.disabled=true;
+  }
+}
+
+function setStatus(txt,cls){
+  statusLabel.textContent=txt;
+  statusLabel.className='status-label'+(cls?' '+cls:'');
+}
+
+function showTranscript(who,text,faded=false){
+  transcriptLabel.textContent=who==='you'?'YOU':'ASSESSOR';
+  transcriptText.textContent=text;
+  transcriptArea.className='transcript-area '+(who==='you'?'user-turn':'bot-turn');
+  transcriptText.className='transcript-text'+(faded?' faded':'');
+}
+
+const SYSTEM_PROMPT = `You are a warm, professional English language examiner conducting an oral CEFR assessment through natural spoken conversation over exactly ${TOTAL_TURNS} exchanges.
+
+RULES:
+1. First message: warmly welcome the user in 1-2 short sentences, then ask a simple open question (A2-B1 level).
+2. Gradually increase difficulty based on performance.
+3. Cover varied topics: describing, opinions, hypotheticals, abstract ideas.
+4. Keep each message SHORT: maximum 2-3 sentences. This is spoken conversation.
+5. Do NOT give feedback or encouragement between turns. Just ask the next question naturally.
+6. After exactly ${TOTAL_TURNS} user responses, output ONLY this JSON (no other text):
+{"level":"B2","levelName":"Upper Intermediate","vocabulary":75,"grammar":70,"fluency":80,"complexity":65,"summary":"Two sentences about performance.","recommendation":"One concrete piece of advice."}
+Levels: A1 A2 B1 B2 C1 C2. Values 0-100.`;
+
+// ── SPEECH SYNTHESIS ──
+function speak(text, onEnd){
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang='en-GB'; utter.rate=0.95; utter.pitch=1.05;
+  const voices=window.speechSynthesis.getVoices();
+  const v=voices.find(v=>v.lang==='en-GB'&&v.name.toLowerCase().includes('female'))
+    ||voices.find(v=>v.lang==='en-GB')
+    ||voices.find(v=>v.lang.startsWith('en'));
+  if(v) utter.voice=v;
+  utter.onstart=()=>{ setState('speaking'); showTranscript('assessor',text); };
+  utter.onend=()=>{ if(onEnd) onEnd(); };
+  utter.onerror=()=>{ if(onEnd) onEnd(); };
+  window.speechSynthesis.speak(utter);
+}
+
+// ── SPEECH RECOGNITION ──
+function initRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ showError('Speech recognition not supported. Please use Chrome or Edge.'); return false; }
+  recognition=new SR();
+  recognition.lang='en-US'; recognition.interimResults=true; recognition.continuous=false;
+  let final='', interim='';
+
+  recognition.onstart=()=>{ final=''; interim=''; setState('listening'); hideError(); };
+
+  recognition.onresult=(e)=>{
+    interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    showTranscript('you',(final+' '+interim).trim()||'…');
+  };
+
+  recognition.onend=()=>{
+    const said=final.trim();
+    if(said&&appState==='listening') processUserSpeech(said);
+    else if(appState==='listening') setState('waiting');
+  };
+
+  recognition.onerror=(e)=>{
+    if(e.error==='not-allowed'){
+      showError('Microphone access denied. Please allow microphone permission in your browser and reload.');
+    } else if(e.error!=='no-speech'&&e.error!=='aborted'){
+      showError('Recognition error: '+e.error);
+    }
+    setState('waiting');
+  };
+  return true;
+}
+
+function startListening(){ try{ recognition.start(); }catch(e){} }
+function stopListening(){  try{ recognition.stop();  }catch(e){} }
+
+function handleOrbClick(){
+  if(appState==='waiting') startListening();
+  else if(appState==='listening') stopListening();
+}
+
+// ── API CALL (via local proxy) ──
+async function callAI(){
+  setState('thinking');
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:600,
+        system: SYSTEM_PROMPT,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    const raw=(data.content||[]).map(b=>b.text||'').join('');
+
+    const jsonMatch=raw.match(/\{[\s\S]*\}/);
+    if(jsonMatch){
+      try{
+        const result=JSON.parse(jsonMatch[0]);
+        history.push({role:'assistant',content:raw});
+        speak("That concludes our assessment. Your results are on screen.",()=>{ setState('done'); showResult(result); });
+        return;
+      }catch(e){}
+    }
+
+    history.push({role:'assistant',content:raw});
+    speak(raw,()=>{
+      if(turnCount<TOTAL_TURNS) setState('waiting');
+      else callFinalEval();
+    });
+  } catch(err){
+    showError('Server error: '+err.message);
+    setState('waiting');
+  }
+}
+
+async function callFinalEval(){
+  setState('thinking');
+  history.push({role:'user',content:'[Please output the final JSON assessment now.]'});
+  try{
+    const res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:SYSTEM_PROMPT,messages:history})
+    });
+    const data=await res.json();
+    const raw=(data.content||[]).map(b=>b.text||'').join('');
+    const jsonMatch=raw.match(/\{[\s\S]*\}/);
+    if(jsonMatch){ const result=JSON.parse(jsonMatch[0]); speak("Assessment complete.",()=>{setState('done');showResult(result);}); }
+  }catch(e){ setState('done'); }
+}
+
+function processUserSpeech(text){
+  showTranscript('you',text);
+  history.push({role:'user',content:text});
+  turnCount++; updateCounter(); updateDots(); callAI();
+}
+
+function updateCounter(){ turnCounter.textContent=`${turnCount} / ${TOTAL_TURNS}`; }
+
+// ── RESULT ──
+const mColors={vocabulary:'#63b3ed',grammar:'#f6ad55',fluency:'#68d391',complexity:'#b794f4'};
+const mNames ={vocabulary:'Vocabulary',grammar:'Grammar',fluency:'Fluency',complexity:'Complexity'};
+
+function showResult(data){
+  document.getElementById('resLevel').textContent=data.level;
+  document.getElementById('resLevelName').textContent=data.levelName;
+  const m=document.getElementById('resMetrics'); m.innerHTML='';
+  ['vocabulary','grammar','fluency','complexity'].forEach(k=>{
+    m.innerHTML+=`<div class="metric">
+      <div class="metric-top"><span class="metric-name">${mNames[k]}</span><span class="metric-val">${data[k]}%</span></div>
+      <div class="metric-bar"><div class="metric-fill" id="mf-${k}" style="background:${mColors[k]}"></div></div>
+    </div>`;
+  });
+  document.getElementById('resSummary').innerHTML=`<strong>Summary:</strong> ${data.summary}<br><br><strong>Tip:</strong> ${data.recommendation}`;
+  document.getElementById('resultOverlay').classList.add('show');
+  setTimeout(()=>{ ['vocabulary','grammar','fluency','complexity'].forEach(k=>{ const el=document.getElementById(`mf-${k}`); if(el) el.style.width=data[k]+'%'; }); },300);
+}
+
+// ── INIT ──
+async function init(){
+  if(window.speechSynthesis.getVoices().length===0){
+    await new Promise(r=>{ window.speechSynthesis.onvoiceschanged=r; setTimeout(r,1000); });
+  }
+  if(!initRecognition()) return;
+  updateDots(); updateCounter();
+
+  history.push({role:'user',content:'Hello, I would like to do the English level assessment.'});
+  setState('thinking');
+  try{
+    const res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,system:SYSTEM_PROMPT,messages:history})
+    });
+    const data=await res.json();
+    const text=(data.content||[]).map(b=>b.text||'').join('');
+    history.push({role:'assistant',content:text});
+    speak(text,()=>{ setState('waiting'); micBtn.disabled=false; });
+  }catch(e){
+    showError('Cannot connect to server. Make sure the server is running.');
+  }
+}
+
+window.addEventListener('load',()=>setTimeout(init,500));
+</script>
+</body>
+</html>

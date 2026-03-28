@@ -1,0 +1,12 @@
+{
+  "name": "english-voice-assessor",
+  "version": "1.0.0",
+  "description": "Voice-powered English CEFR assessor",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
